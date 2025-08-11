@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useRef, useState } from 'react';
 
-export interface PromptInputProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface PromptInputProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onSubmit'> {
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   onFileUpload?: (file: File) => void;
   isLoading?: boolean;
