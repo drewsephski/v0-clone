@@ -6,7 +6,7 @@ import { AISettingsModal } from '@/components/ai-settings-modal';
 import { useAISettings } from '@/hooks/use-ai-settings';
 
 import { cn } from '@/lib/utils';
-import { Message } from '@/components/ai-elements/message';
+import { Message } from '@/components/chat/message';
 import { 
   Conversation, 
   ConversationContent, 
@@ -201,98 +201,71 @@ const ChatBot = () => {
                     // System messages (like file uploads)
                     if (msg.type === 'system') {
                       return (
-                        <div key={msg.id} className="flex justify-start">
-                          <div className={cn(
-                            'max-w-[80%] w-full',
+                        <Message
+                          key={msg.id}
+                          from="assistant"
+                          content={msg.content}
+                          status={msg.status}
+                          className={cn(
                             msg.status === 'error' ? 'border-l-4 border-l-red-500 pl-4' : ''
-                          )}>
-                            <Message
-                              from="assistant"
-                              content={msg.content}
-                              status={msg.status}
-                              className={cn(
-                                msg.status === 'error' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-muted/50',
-                                'transition-colors duration-200'
-                              )}
-                            >
-                              {msg.attachments?.map((file) => (
-                                <div key={file.id} className={cn(
-                                  'mt-2 flex items-center gap-2 rounded-lg p-2 text-sm transition-colors',
-                                  msg.status === 'error' 
-                                    ? 'bg-red-100/50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
-                                    : 'bg-background border',
-                                  'group-hover:shadow-sm'
-                                )}>
-                                  <FileIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                                  <span className="truncate flex-1">{file.name}</span>
-                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                    {(file.size / 1024).toFixed(1)} KB
-                                  </span>
-                                </div>
-                              ))}
-                            </Message>
-                          </div>
-                        </div>
+                          )}
+                        >
+                          {msg.attachments?.map((file) => (
+                            <div key={file.id} className={cn(
+                              'mt-2 flex items-center gap-2 rounded-lg p-2 text-sm transition-colors',
+                              msg.status === 'error'
+                                ? 'bg-red-100/50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
+                                : 'bg-background border',
+                              'group-hover:shadow-sm'
+                            )}>
+                              <FileIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                              <span className="truncate flex-1">{file.name}</span>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </span>
+                            </div>
+                          ))}
+                        </Message>
                       );
                     }
                     
                     // Regular messages (user or assistant)
                     const isUser = msg.type === 'user';
                     return (
-                      <div 
-                        key={msg.id} 
-                        className={cn(
-                          'group flex',
-                          isUser ? 'justify-end' : 'justify-start'
-                        )}
+                      <Message
+                        key={msg.id}
+                        from={isUser ? 'user' : 'assistant'}
+                        content={msg.content}
+                        status={msg.status || 'sent'}
+                        onRegenerate={isUser ? () => {
+                          setMessage(msg.content);
+                          // In a real app, you would trigger a resend of the message
+                        } : undefined}
                       >
-                        <div className={cn(
-                          'max-w-[80%]',
-                          isUser ? 'flex justify-end' : ''
-                        )}>
-                          <Message 
-                            from={isUser ? 'user' : 'assistant'}
-                            content={msg.content}
-                            status={msg.status || 'sent'}
-                            className={cn(
-                              'transition-all duration-200',
-                              isUser 
-                                ? 'bg-blue-600 text-white rounded-tr-none' 
-                                : 'bg-muted/80 dark:bg-muted/50 rounded-tl-none',
-                              msg.status === 'error' && 'border-l-4 border-l-red-500',
-                              'group-hover:shadow-md'
-                            )}
-                            onRegenerate={isUser ? () => {
-                              setMessage(msg.content);
-                              // In a real app, you would trigger a resend of the message
-                            } : undefined}
-                          >
-                            {msg.content}
-                            {msg.attachments?.map((file) => (
-                              <div key={file.id} className="mt-2">
-                                <a
-                                  href={file.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={cn(
-                                    'inline-flex items-center gap-2 text-sm p-2 rounded-lg transition-colors',
-                                    'border',
-                                    isUser
-                                      ? 'bg-blue-500/20 text-blue-100 hover:bg-blue-500/30 border-blue-400/30'
-                                      : 'bg-muted hover:bg-muted/80 text-foreground border-border'
-                                  )}
-                                >
-                                  <FileIcon className="h-4 w-4 flex-shrink-0" />
-                                  <span className="truncate max-w-[200px]">{file.name}</span>
-                                  <span className="text-xs opacity-70 whitespace-nowrap">
-                                    {(file.size / 1024).toFixed(1)} KB
-                                  </span>
-                                </a>
-                              </div>
-                            ))}
-                          </Message>
-                        </div>
-                      </div>
+                        {msg.content}
+                        {msg.attachments?.map((file) => (
+                          <div key={file.id} className="mt-2">
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                'inline-flex items-center gap-2 text-sm p-2 rounded-lg transition-colors',
+                                'border',
+                                isUser
+                                  ? 'bg-blue-500/20 text-blue-100 hover:bg-blue-500/30 border-blue-400/30'
+                                  : 'bg-muted hover:bg-muted/80 text-foreground border-border'
+                              )}
+                            >
+                              <FileIcon className="h-4 w-4 flex-shrink-0" />
+                              <span className="truncate max-w-[200px]">{file.name}</span>
+                              <span className="text-xs opacity-70 whitespace-nowrap">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </span>
+                            </a>
+                          </div>
+                        ))}
+                      </Message>
                     );
                   })}
                 </ConversationContent>
