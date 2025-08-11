@@ -8,7 +8,7 @@ import { AISettingsModal } from '@/components/ai-settings-modal';
 import { useAISettings } from '@/hooks/use-ai-settings';
 
 import { cn } from '@/lib/utils';
-import { Message } from '@/components/ai-elements/message';
+import { Message } from '@/components/chat/message';
 import { 
   Conversation, 
   ConversationContent, 
@@ -65,53 +65,104 @@ const ChatBot = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && !isLoading && (
-            <div className="text-center font-semibold mt-8">
-              <p className="text-3xl mt-4">What can we build together?</p>
-            </div>
-          )}
-          <Conversation className="flex-1">
-            <ConversationContent className="space-y-6 p-4">
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={cn(
-                    'group flex',
-                    m.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
+          {messages.length === 0 && !isLoading ? (
+            <div className="flex flex-col items-center justify-center h-full -mt-20">
+              <div className="bg-gradient-to-br from-purple-600 to-blue-500 p-4 rounded-2xl mb-6">
+                <Sparkles className="h-12 w-12 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">How can I help you today?</h2>
+              <p className="text-muted-foreground mb-8">Ask me anything or try one of these examples:</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                <button
+                  onClick={() => setInput('Explain quantum computing in simple terms')}
+                  className="p-4 rounded-lg border hover:bg-accent/50 transition-colors text-left"
                 >
-                  <div className={cn(
-                    'max-w-[80%]',
-                    m.role === 'user' ? 'flex justify-end' : ''
-                  )}>
-                    <Message
-                      from={m.role === 'user' ? 'user' : 'assistant'}
-                      content={m.parts.map(part => part.type === 'text' ? part.text : '').join('')}
-                      className={cn(
-                        'transition-all duration-200',
-                        m.role === 'user'
-                          ? 'bg-blue-600 text-white rounded-tr-none'
-                          : 'bg-muted/80 dark:bg-muted/50 rounded-tl-none',
-                        'group-hover:shadow-md'
-                      )}
-                    />
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lightbulb className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium">Explain quantum computing</span>
                   </div>
-                </div>
-              ))}
-              {isLoading && (
-                <Message 
-                  from="assistant"
-                  content=""
-                  status="sending"
+                  <p className="text-sm text-muted-foreground">In simple terms</p>
+                </button>
+                
+                <button
+                  onClick={() => setInput('Build a todo app with React')}
+                  className="p-4 rounded-lg border hover:bg-accent/50 transition-colors text-left"
                 >
-                  <TypingIndicator />
-                </Message>
-              )}
-            </ConversationContent>
-            <ConversationScrollButton
-              className="bg-background/80 backdrop-blur-sm border border-border/60 shadow-lg hover:bg-background/90"
-            />
-          </Conversation>
+                  <div className="flex items-center gap-2 mb-1">
+                    <MessageSquarePlus className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium">Build a todo app</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">With React</p>
+                </button>
+                
+                <button
+                  onClick={() => setInput('Make a landing page for a coffee shop')}
+                  className="p-4 rounded-lg border hover:bg-accent/50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileIcon className="h-4 w-4 text-amber-500" />
+                    <span className="font-medium">Coffee shop landing page</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Modern design</p>
+                </button>
+                
+                <button
+                  onClick={() => setInput('Help me debug this React component')}
+                  className="p-4 rounded-lg border hover:bg-accent/50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Settings className="h-4 w-4 text-green-500" />
+                    <span className="font-medium">Debug React component</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Help me fix an issue</p>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Conversation className="flex-1">
+              <ConversationContent className="space-y-6 p-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      'group flex',
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
+                    <div className={cn(
+                      'max-w-[80%]',
+                      message.role === 'user' ? 'flex justify-end' : ''
+                    )}>
+                      <Message
+                        from={message.role === 'user' ? 'user' : 'assistant'}
+                        content={message.parts.map(part => part.type === 'text' ? part.text : '').join('')}
+                        className={cn(
+                          'transition-all duration-200',
+                          message.role === 'user'
+                            ? 'bg-blue-600 text-white rounded-tr-none'
+                            : 'bg-muted/80 dark:bg-muted/50 rounded-tl-none',
+                          'group-hover:shadow-md'
+                        )}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <Message 
+                    from="assistant"
+                    content=""
+                    status="sending"
+                  >
+                    <TypingIndicator />
+                  </Message>
+                )}
+              </ConversationContent>
+              <ConversationScrollButton
+                className="bg-background/80 backdrop-blur-sm border border-border-/60 shadow-lg hover:bg-background/90"
+              />
+            </Conversation>
+          )}
           {error && (
             <Message from="assistant" content={`Error: ${error.message}`} />
           )}
@@ -199,7 +250,7 @@ const ChatBot = () => {
         </div>
       </div>
 
-      {/* Preview Panel */}
+
       <div className="w-1/2 flex flex-col">
         <WebPreview>
           <WebPreviewNavigation>
