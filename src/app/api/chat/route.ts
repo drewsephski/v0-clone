@@ -65,15 +65,35 @@ type RequestBody = {
 
 export async function POST(req: Request) {
   try {
-    const { messages, model = 'mistralai/mistral-7b-instruct:free', webSearch, temperature = 0.7, maxTokens = 1000 } = await req.json() as RequestBody;
+    console.log('Received chat request');
+    const body = await req.json();
+    console.log('Request body:', JSON.stringify(body, null, 2));
+    
+    const { messages, model = 'mistralai/mistral-7b-instruct:free', webSearch, temperature = 0.7, maxTokens = 1000 } = body as RequestBody;
+    
+    if (!messages || !Array.isArray(messages)) {
+      const error = new Error('Invalid messages format');
+      console.error('Invalid messages format:', messages);
+      console.error('Error in chat API:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Error details:', error);
+      
+      return new Response(JSON.stringify({ 
+        error: 'Failed to process chat request',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // Check if using OpenRouter (for models not directly supported by Vercel AI SDK)
     const isOpenRouterModel = model in OPENROUTER_MODELS;
 
     if (isOpenRouterModel) {
       try {
-        // Get the OpenRouter API key from the request headers
-        const openRouterApiKey = req.headers.get('x-openrouter-api-key');
+        // Get the API key from the request headers or environment variables
+        const openRouterApiKey = req.headers.get('x-openrouter-api-key') || process.env.OPENROUTER_API_KEY;
         
         if (!openRouterApiKey) {
           throw new Error('OpenRouter API key is required');
@@ -94,13 +114,17 @@ export async function POST(req: Request) {
             }
             // data/tool messages default to 'user' role
           }
-          }
           
           return {
             role,
             content: content.trim()
           };
         }).filter(msg => msg.content); // Remove empty messages
+
+        // Make sure we have messages to process
+        if (!formattedMessages.length) {
+          throw new Error('No valid messages to process');
+        }
 
         console.log('Sending to OpenRouter:', {
           model,
@@ -109,7 +133,7 @@ export async function POST(req: Request) {
           maxTokens
         });
 
-        // Use OpenRouter for the request
+        // Call the OpenRouter API
         const response = await chatWithOpenRouter(
           formattedMessages,
           model as OpenRouterModel,
@@ -117,19 +141,44 @@ export async function POST(req: Request) {
           maxTokens
         );
 
-        // Convert to a stream-like response for consistency
+        // Create a stream from the response
         const stream = new ReadableStream({
-          start(controller) {
-            const encoder = new TextEncoder();
-            if (response) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: response })}\n\n`));
+          async start(controller) {
+            try {
+              // Handle string response
+              if (typeof response === 'string') {
+                controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: response })}\n\n`));
+              } 
+              // Handle AsyncIterable response
+              else if (response && typeof response === 'object' && response !== null) {
+                // Check if the response is an async iterable
+                const maybeAsyncIterable = response as { [Symbol.asyncIterator]?: () => AsyncIterator<unknown> };
+                if (typeof maybeAsyncIterable[Symbol.asyncIterator] === 'function') {
+                  // Type assertion to handle async iterable
+                  const asyncIterable = response as AsyncIterable<unknown>;
+                  for await (const chunk of asyncIterable) {
+                    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: String(chunk) })}\n\n`));
+                  }
+                }
+              } 
+              // Handle other response types
+              else {
+                controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: String(response) })}\n\n`));
+              }
+              controller.close();
+            } catch (error) {
+              console.error('Error streaming response:', error);
+              controller.error(error);
             }
-            controller.close();
           },
         });
 
         return new Response(stream, {
-          headers: { 'Content-Type': 'text/event-stream' },
+          headers: { 
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
         });
       } catch (error) {
         console.error('OpenRouter API error:', error);
